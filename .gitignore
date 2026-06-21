@@ -1,0 +1,14 @@
+.venv/
+.venv-1/
+.venv-build/
+.remote-review/
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+bin/
+node_modules/
+
+omni_config.json
+*.log
