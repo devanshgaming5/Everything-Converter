@@ -7,9 +7,6 @@ __pycache__/
 
 build/
 dist/
-!dist/
-dist/*
-!dist/converter.exe
 bin/
 node_modules/
 

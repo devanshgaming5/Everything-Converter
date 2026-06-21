@@ -22,7 +22,7 @@ No Python or FFmpeg installation is required.
    .\build_exe.ps1
    ```
 
-The portable executable is created at `dist\converter.exe`. Python, Pillow,
+The portable executable is created at `converter.exe` in the project root. Python, Pillow,
 CustomTkinter, ffmpeg-python, and FFmpeg are bundled into that file. Users do
 not need to install those dependencies.
 

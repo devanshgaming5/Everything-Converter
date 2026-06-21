@@ -16,7 +16,8 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "PyInstaller failed with exit code $LASTEXITCODE."
     }
-    Write-Host "Standalone app created at: $PSScriptRoot\dist\converter.exe"
+    Copy-Item -LiteralPath "$PSScriptRoot\dist\converter.exe" -Destination "$PSScriptRoot\converter.exe" -Force
+    Write-Host "Standalone app created at: $PSScriptRoot\converter.exe"
 }
 finally {
     Pop-Location
