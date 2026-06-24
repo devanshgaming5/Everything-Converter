@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import collect_submodules
+
 
 a = Analysis(
     ['converter.py'],
     pathex=[],
     binaries=[('bin/ffmpeg.exe', 'bin')],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=collect_submodules('yt_dlp') + ['tkinter', 'tkinter.ttk', 'tkinter.filedialog', 'tkinter.messagebox'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -4,6 +4,7 @@ import sys
 import threading
 import datetime
 import ffmpeg
+import yt_dlp
 from PIL import Image
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
@@ -53,6 +54,7 @@ class OmniConvertDashboard(ctk.CTk):
         self.current_mode = "image"
         self.input_filepath = ""
         self.file_type = None 
+        self.youtube_url = ""
         
         # Load Memory!
         self.output_directory = "" 
@@ -101,6 +103,7 @@ class OmniConvertDashboard(ctk.CTk):
 
         self.nav_buttons["image"] = self.create_nav_button(sidebar, "🖼️ Image Converter", lambda: self.switch_mode("image"), active=True)
         self.nav_buttons["video"] = self.create_nav_button(sidebar, "🎬 Video Converter", lambda: self.switch_mode("video"))
+        self.nav_buttons["youtube"] = self.create_nav_button(sidebar, "⬇️ YouTube Downloader", lambda: self.switch_mode("youtube"))
         self.nav_buttons["history"] = self.create_nav_button(sidebar, "🕒 History", lambda: self.switch_mode("history"))
 
         ctk.CTkFrame(sidebar, fg_color="transparent").pack(expand=True, fill="both")
@@ -128,6 +131,7 @@ class OmniConvertDashboard(ctk.CTk):
 
         if mode in ["image", "video"]:
             self.history_frame.grid_remove()
+            self.youtube_frame.grid_remove()
             self.converter_frame.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
             
             if mode == "image":
@@ -145,8 +149,15 @@ class OmniConvertDashboard(ctk.CTk):
             self.combo_to.configure(values=["..."])
             self.combo_to.set("...")
 
+        elif mode == "youtube":
+            self.converter_frame.grid_remove()
+            self.history_frame.grid_remove()
+            self.youtube_frame.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
+            self.status_title.configure(text="Paste a YouTube URL to download.")
+
         elif mode == "history":
             self.converter_frame.grid_remove()
+            self.youtube_frame.grid_remove()
             self.history_frame.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
             self.refresh_history_ui()
 
@@ -202,6 +213,69 @@ class OmniConvertDashboard(ctk.CTk):
         
         self.history_list = ctk.CTkScrollableFrame(self.history_frame, fg_color=BG_CARD, corner_radius=15, border_width=1, border_color="#272b40")
         self.history_list.grid(row=2, column=0, sticky="nsew")
+
+        self.youtube_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.youtube_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(self.youtube_frame, text="Download YouTube Videos", font=("Roboto", 32, "bold")).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            self.youtube_frame,
+            text="Save videos you own or have permission to download.",
+            font=("Roboto", 14),
+            text_color=TEXT_MUTED
+        ).grid(row=1, column=0, sticky="w", pady=(5, 30))
+
+        download_card = ctk.CTkFrame(self.youtube_frame, fg_color=BG_CARD, corner_radius=20, border_width=2, border_color="#272b40")
+        download_card.grid(row=2, column=0, sticky="ew", ipady=25)
+        download_card.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(download_card, text="🔗", font=("Roboto", 48)).grid(row=0, column=0, pady=(25, 5))
+        ctk.CTkLabel(download_card, text="Paste a YouTube link", font=("Roboto", 18, "bold")).grid(row=1, column=0)
+
+        self.youtube_url_entry = ctk.CTkEntry(
+            download_card,
+            placeholder_text="https://www.youtube.com/watch?v=...",
+            fg_color="#141622",
+            border_color="#272b40",
+            height=42
+        )
+        self.youtube_url_entry.grid(row=2, column=0, sticky="ew", padx=35, pady=(20, 10))
+
+        options_panel = ctk.CTkFrame(self.youtube_frame, fg_color=BG_CARD, corner_radius=15)
+        options_panel.grid(row=3, column=0, sticky="ew", pady=30)
+        options_panel.grid_columnconfigure((0, 1, 2), weight=1)
+
+        ctk.CTkLabel(options_panel, text="QUALITY", font=("Roboto", 10, "bold"), text_color=TEXT_MUTED).grid(row=0, column=0, sticky="w", padx=20, pady=(15, 0))
+        self.youtube_quality = ctk.CTkComboBox(
+            options_panel,
+            values=["Best video", "1080p", "720p", "480p", "Audio only MP3"],
+            fg_color="#141622",
+            border_color="#272b40"
+        )
+        self.youtube_quality.grid(row=1, column=0, sticky="ew", padx=20, pady=(5, 20))
+        self.youtube_quality.set("Best video")
+
+        ctk.CTkLabel(options_panel, text="OUTPUT", font=("Roboto", 10, "bold"), text_color=TEXT_MUTED).grid(row=0, column=1, sticky="w", padx=20, pady=(15, 0))
+        self.youtube_output_label = ctk.CTkLabel(
+            options_panel,
+            text="Uses your saved output folder",
+            text_color=TEXT_MUTED,
+            anchor="w"
+        )
+        self.youtube_output_label.grid(row=1, column=1, sticky="ew", padx=20, pady=(5, 20))
+
+        self.youtube_download_btn = ctk.CTkButton(
+            options_panel,
+            text="Download",
+            font=("Roboto", 14, "bold"),
+            fg_color=ACCENT_PURPLE,
+            hover_color="#7c3aed",
+            height=40,
+            command=self.start_youtube_download
+        )
+        self.youtube_download_btn.grid(row=1, column=2, padx=20, pady=(5, 20))
+
+        self.youtube_frame.grid_remove()
 
     def refresh_history_ui(self):
         for widget in self.history_list.winfo_children():
@@ -342,6 +416,102 @@ class OmniConvertDashboard(ctk.CTk):
         self.status_title.configure(text="Processing... Please wait.")
 
         threading.Thread(target=self.run_conversion, args=(target_ext,), daemon=True).start()
+
+    def start_youtube_download(self):
+        url = self.youtube_url_entry.get().strip()
+        if not url:
+            messagebox.showwarning("Warning", "Please paste a YouTube URL first.")
+            return
+
+        if not self.output_directory:
+            self.open_settings_island(force=True)
+            return
+
+        self.youtube_url = url
+        self.youtube_download_btn.configure(state="disabled", text="Downloading...")
+        self.status_card.configure(border_color=ACCENT_PURPLE)
+        self.status_title.configure(text="Downloading from YouTube...")
+
+        quality = self.youtube_quality.get()
+        threading.Thread(target=self.run_youtube_download, args=(url, quality), daemon=True).start()
+
+    def youtube_format_selector(self, quality):
+        if quality == "Audio only MP3":
+            return "bestaudio/best"
+
+        limits = {
+            "1080p": 1080,
+            "720p": 720,
+            "480p": 480,
+        }
+        max_height = limits.get(quality)
+        if not max_height:
+            return "bv*+ba/best"
+
+        return (
+            f"bv*[height<={max_height}]+ba/best[height<={max_height}]/"
+            f"bestvideo[height<={max_height}]+bestaudio/best"
+        )
+
+    def run_youtube_download(self, url, quality):
+        success = False
+        error_msg = ""
+        output_path = self.output_directory
+
+        try:
+            options = {
+                "format": self.youtube_format_selector(quality),
+                "outtmpl": os.path.join(self.output_directory, "%(title).180B [%(id)s].%(ext)s"),
+                "restrictfilenames": True,
+                "noplaylist": True,
+                "windowsfilenames": True,
+                "quiet": True,
+                "no_warnings": True,
+            }
+
+            if os.path.isfile(FFMPEG_EXE):
+                options["ffmpeg_location"] = os.path.dirname(FFMPEG_EXE)
+                options["merge_output_format"] = "mp4"
+
+            if quality == "Audio only MP3":
+                options["postprocessors"] = [{
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }]
+
+            with yt_dlp.YoutubeDL(options) as ydl:
+                info = ydl.extract_info(url, download=True)
+                output_path = ydl.prepare_filename(info)
+                if quality == "Audio only MP3":
+                    output_path = os.path.splitext(output_path)[0] + ".mp3"
+                elif os.path.isfile(FFMPEG_EXE):
+                    output_path = os.path.splitext(output_path)[0] + ".mp4"
+
+            success = True
+        except Exception as e:
+            error_msg = str(e)
+
+        self.after(100, self.finish_youtube_download, success, output_path, error_msg)
+
+    def finish_youtube_download(self, success, output_path, error_msg):
+        self.youtube_download_btn.configure(state="normal", text="Download")
+
+        current_time = datetime.datetime.now().strftime("%I:%M %p")
+        self.history_logs.append({
+            "file": os.path.basename(output_path) if output_path else "YouTube download",
+            "success": success,
+            "time": current_time
+        })
+        self.save_memory()
+
+        if success:
+            self.status_card.configure(border_color="#10b981")
+            self.status_title.configure(text=f"✓ Saved to {os.path.basename(self.output_directory)}")
+        else:
+            self.status_card.configure(border_color="#ef4444")
+            self.status_title.configure(text="Download Failed.")
+            messagebox.showerror("Error", f"Failed:\n{error_msg}")
 
     def run_conversion(self, target_ext):
         input_path = self.input_filepath

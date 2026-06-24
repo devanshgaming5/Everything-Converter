@@ -23,8 +23,12 @@ No Python or FFmpeg installation is required.
    ```
 
 The portable executable is created at `converter.exe` in the project root. Python, Pillow,
-CustomTkinter, ffmpeg-python, and FFmpeg are bundled into that file. Users do
+CustomTkinter, ffmpeg-python, yt-dlp, and FFmpeg are bundled into that file. Users do
 not need to install those dependencies.
+
+The YouTube downloader is intended for videos you own or have permission to
+download. Availability can depend on YouTube changes, network access, and the
+version of yt-dlp bundled into the executable.
 
 Settings and conversion history are stored in
 `%LOCALAPPDATA%\OmniConvert\omni_config.json`, so the executable can run from
